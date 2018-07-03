@@ -1,0 +1,250 @@
+##############################################################################
+##    SCRIPTS EN PYTHON Y BASH PARA EL MANEJO DE DATOSS tr5 DEL IDEAM       ##
+##        EL CÁLCULO DE LA ETo Y LA CREACIÓN DE ENTRADAS CLIMÁTICAS         ##
+##                              DE AquaCrop                                 ##
+##############################################################################
+
+Se tiene acá 8 Scripts en Python un script en bash y 3 archivos base de AquaCrop
+la base para correr todos los scripts es un archivo tr5, brindado por el IDEAM.
+A continuación explicaré geralmente cada Script:
+*******************************************************************************
+*   Datos.py: coge el archivo tr5, y genera un archivo para cada estación     *
+*   y variable en el periodo deseado.				              *
+*									      *
+*   DesSta.py: Hace una estadística descriptiva de los datos                  *
+*									      *
+*   ETo.py: Calcula la evapotranspiración, ya teniendo las Tmin, Tmax, T,     *
+*   HR, VV y BS de las estaciones					      *
+*									      *
+*   JuntaT.py: Genera un solo archivo para Tmax y Tmin, de manera que sirva   *
+*   como entrada a AquaCrop						      *
+*									      *
+*   lista_estaciones.py: Da una lista de las estaciones que tienen datos en   *
+*   el tr5								      *
+*									      *
+*   NaN2Mean.py: Reemplaza todos los valores faltantes con el medio de toda   *
+*   la serie								      *
+*									      *
+*   PT_CLP.py: Utilizando estaciones vecinas calcula los valores faltantes de *
+*   las series usandp una Correlación Lineal Ponderada.			      *
+*									      *
+*   txt2csv.py: Convierte archivos en formato txt a csv		              *
+*									      *
+*   AquaCropIN.bash: Toma los datos de Temperatura mínima y máxima, 	      *
+*   Precipitación, y  ETo y crea una entrada climática para AquaCrop 	      *
+*   con estos datos.							      *
+*******************************************************************************
+
+
+Los Script de Python necesitan los módulos Python, Numpy, Matplotlib y sh, y pyeto
+Todo se programó en SO Linux, es evidente que el archivo Bash, no funcionará en 
+otro Sistema operativo, los script de Python deberían funcionar igualmente. 
+
+También es bueno recordar que los Scripts deben ejecutarse en el mismo directorio 
+en el que estén los archivos que serán entrada de los códigos. Ahora se explicará
+el uso de cada Script en el orden que se deberían ejecutar, mostrando sus 
+encabezados.
+
+Repito:
+
+LOS SCRIPTS DEBEN ESTAR EN EL MISMO DIRECTORIO EN EL QUE ESTÁN LAS ENTRADAS DEL
+CÓDIGO, EN ESE MISMO DIRECTORIO SE CREARÁN LAS SALIDAS.
+
+SI EL CÓDIGO NO ENCUENTRA ALGÚN ARCHIVO DE ENTRADA NO FUNCIONARA, ENTONCES DEBEN
+ASEGURARSE QUE LAS ENTRADAS QUE LE INDIQUEN AL CÓDIGO ESTARÁN DISPONIBLES.
+
+-------------------------------------------------------------------------------
+			      lista_estaciones.py
+-------------------------------------------------------------------------------
+Le ingresa el archivo tr5 e imprime una lista de los códigos de las estaciones
+que están en el archito tr5.
+
+	# -*- coding: utf-8 -*-
+	"""
+	Created on Mon May  7 14:06:01 2018
+
+	@author: diego
+	"""
+
+	f=open("20189050033522.tr5","r")
+	lines=f.readlines()
+	f.close()
+
+
+-------------------------------------------------------------------------------
+			          Datos.py
+-------------------------------------------------------------------------------
+
+	#Entradas del programa
+	data="20189050033522.tr5"               #Archivo tr5 
+	esta=['21190310', '21201060', '21201070']           #Codigo de estaciones
+	var=["PT", "BS", "TS"]             #Variables
+	Anoi=1981  #Ano inicial (Primer enero)
+	Anof=2011  #Ano final   (Ano siguiente ultimo diciembre)
+	col=True   #Organizar en columnas
+
+Su único archivo de entrada es el archivo en formato tr5, que se debe indicar en
+la variable data. Se ingresa también una lista de los códigos de las estaciones, 
+los elementos de esta lista se generan con el script anterior.
+
+En var, se ingresa una lista con las variables que se desean. Las variables más 
+usadas son Precipitación (PT), Temperaturas (TS), Brillo solar horario (BS),
+recorrido del viento (VR) y Humedad relativa (HR). Para más variables, pueden 
+consultar la metadata del archivo tr5.
+
+Se ingresa también el Año inicial de la serie, y el Año final. El inicial 
+corresponde al año del primer enero, el final al año siguiente del último 
+diciembre. En col, se especifica si se desea o no que organice las variables en 
+una sola columna. Si col=True generará un archivo txt, donde habría una sola 
+columna, si es False, habrá una columna por cada mes. Es importante que si
+se desea utilizar los códigos siguientes, col debe ser True.
+
+A medida que corre el código, irá apareciendo si la serie está o no completa 
+para cada estación y cada variable. Si la serie está incompleta quiere decir 
+que hay al menos un Año completo sin datos.
+
+Creará un archivo de la forma CODIGO_VAR.txt. Por ejemplo si la estación es la 
+20541012 y las variables son Temperatura, y Humedad relativa, creará los 
+siguientes archivos:
+			20541012_TS.txt
+			20541012_TSmin.txt
+			20541012_TSmax.txt
+			20541012_HR.txt
+Todos los archivos que se creen de ahora en adelante tendrán la misma estructura
+y deberán conservarla, pues así mismo es la estructura de la entrada de los 
+códigos.
+
+-------------------------------------------------------------------------------
+			        txt2csv.py
+-------------------------------------------------------------------------------
+
+Esto simplemente crea por cada archivo txt presente en el directorio, un archivo
+csv con el mismo contenido. Es importante pues de ahora en adelante, todos los 
+Script trabajarán con csv como entrada.
+
+-------------------------------------------------------------------------------
+				NaN2Mean.py
+-------------------------------------------------------------------------------
+
+	import numpy as np
+	import pandas as pd
+	#Lista de estaciones
+	esta=["21205420", "21206550", "21205770", "21205980",
+	 "21205710", "21206280"]   
+	#Lista de varibles 
+	var=["HR", "TS", "TSmin", "TSmax", "VR", "BS"]
+	#Reemplazar con el promedio
+	rm=True  
+
+Este archivo es bastante importante, hace dos cosas: primero reemplaza los valores
+faltantes por el promedio de toda la serie, segundo convierte los valores de 
+recorrido del viento a velocidad media del viento diara, y los HR, pues estos están
+en el tr5 como un número de 3 cifras. Es decir, hasta este punto la humedad relativa
+es un número como 621, luego de la ejecución de este código será 62.1.
+
+rm define si reemplaza o no los valores faltantes por el promedio de la serie.
+
+-------------------------------------------------------------------------------
+			         DesSta.py
+-------------------------------------------------------------------------------
+
+	import numpy as np
+	import pandas as pd
+	import matplotlib.pyplot as plt
+	#Lista de estaciones
+	esta=['21190310', '21190310', '21201060', '21201070', 
+	'21201210', '21201270', '21205660'] 
+	#Lista de varibles 
+	var=["PT"]
+	graf=False   #Para graficar
+
+Tiene como entrada la lista de estaciones, que se esperaría debería ser la misma
+que se ingresó en Datos.py. También tiene una lista de variables, para las que se
+hará el análisis. si graf=false, generará una gráfica para cada variable, y cada
+estación, graficando en barras los máximos, mínimos y medios. También va a graficar
+el porcentaje de datos faltantes para cada estación. las gráficas se guardarán en
+el directorio en el que se está ejecutando el código.
+
+Finalmente la salida es una tabla mostrando la media, máxima, mínima y % de datos 
+faltantes para cada variable. Una tabla por estación. 
+
+Si se corre este código antes de NaN2Mean.py los valores de Viento y HR no serán los
+reales. Además, si se corre luego de correr NaN2Mean con rm=True no habrán datos 
+faltantes obviamente.
+
+-------------------------------------------------------------------------------
+			          ETo.py
+-------------------------------------------------------------------------------
+	import sys
+	import pyeto
+	import pandas as pd
+
+	reload(sys)
+	sys.setdefaultencoding('utf-8')
+
+
+
+	##########################################################
+	#---------------INGRESO DE VARIABLES---------------------#
+	##########################################################
+	#Lista de codigos de estaciones para las que se calcula la ETo
+	esta=["21205420"] 
+	#Lista de latitudes en grados
+	LAT=[5]  
+	#Lista de altitudes en msnm
+	ALT=[2600]
+	Ano=1981
+
+Las entradas son, como antes, la lista de estaciones. Se debe ingresar también una
+lista con las latitudes, y altitudes de las estaciones. Los valores deben estar en
+el mismo orden que la lista de estaciones. Se ingresa también el primer año de la 
+serie de datos.
+
+En el directorio que se ejecuta el código, deben estar disponibles las series 
+completas de Tmax, Tmin, Tmedia, HR, BS, y VR. Entonces, para cada estación deben
+estar los siguientes archivos:
+				CODIGO_TS.csv
+				CODIGO_TSmin.csv
+				CODIGO_TSmax.csv
+				CODIGO_HR.csv
+				CODIGO_BS.csv
+				CODIGO_VR.csv
+Finalmente, se creará un archivo de ETo para cada estación, de la forma:
+				CODIGO_ETo.csv
+
+-------------------------------------------------------------------------------
+			         PT_CLP.py
+-------------------------------------------------------------------------------
+
+	import pandas as pd
+	import numpy as np
+
+	#Lista de estaciones vecinas
+	esta=['21190310', '21201060', '21201070', '21201210', '21201270',
+	      '21205660','21205420'] 
+	#Ano inicial (Pirmer enero) y Año final (Siguiente a ulitmo diciembre)
+	Anoi=1981
+	Anof=2011
+
+Las mismas entradas de siempre, estaciones y los años que comprenden la serie.
+Este código coge una serie de estaciones vecinas, y calcula los datos faltantes
+usando una correlación lineal ponderada. Es importante que acá necesariamente 
+deben ser varias estaciones, entre más sean mejor. Eso sí, las estaciones deben
+ser buenas vecinas, pero los criterios para elegir buenas vecinas no los abordaré
+acá.
+
+Finalmente creará un archivo para todas las estaciones con toda la serie completa,
+sin un dato faltante. El archivo será así:
+				CODIGO_PTc.csv
+
+-------------------------------------------------------------------------------
+	                  JuntaT.py y AquaCropIN.bash
+-------------------------------------------------------------------------------
+
+Son códigos bastante simples, lo único que hacen es que toman los datos generados
+Anteriormente y crean los archivos TMP, PLU y ETo que requiere el AquaCrop como
+entrada. Primero se debe ejecutar JuntaT, y luego AquaCropIN. Cada código tiene
+la lista de estaciones como entrada.
+
+
+
